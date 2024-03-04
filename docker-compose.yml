@@ -1,0 +1,47 @@
+version: "3.7"
+services:
+  zipkin-collector:
+    image: openzipkin/zipkin-slim:latest
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - example
+  service-a:
+    build: ./service-a/.
+    container_name: service-a
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT_SA=8080
+      - SERVICE_URL=http://service-b:8090
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "./go-service-a -zipkin http://zipkin-collector:9411/api/v2/spans"
+    volumes:
+      - ./.env:/.env
+    networks:
+      - example
+    depends_on:
+      - zipkin-collector
+      - service-b
+  service-b:
+    build: ./service-b/.
+    container_name: service-b
+    ports:
+      - "8090:8090"
+    environment:
+      - PORT_SB=8090
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "./go-service-b -zipkin http://zipkin-collector:9411/api/v2/spans"
+    volumes:
+      - ./.env:/.env
+    networks:
+      - example
+    depends_on:
+      - zipkin-collector
+networks:
+  example:
