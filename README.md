@@ -56,6 +56,8 @@ No serviço A é necessário configurar nas variáveis de ambiente a porta que o
 No serviço B é necessário configurar nas variáveis de ambiente a porta que o servidor irá escutar e a API KEY do serviço externo WeatherAPI.
 Mais detalhes sobre as variáveis de ambiente podem ser vista no arquivo `.env.defaults`. As variáveis de ambiente devem ser configuradas no arquivo `.env` ou diretamente no host.
 
-Por conveniência, está disponível um Docker Compose que sobe os dois serviços e também o Zipkin.
+Quando a aplicação estiver funcionando, a URL do serviço A deverá ser: <https://some.domain.com/:cep> onde `:cep` é o CEP que deseja consultar, por exemplo <http://localhost:8080/13330550>
+
+Por conveniência, está disponível um Docker Compose que sobe os serviços de OTEL e os dois serviços observados .
 
 Cada serviço possui apenas um rota: `/{cep}`.

@@ -1,3 +1,3 @@
 {
-    "cSpell.words": ["opentelemetry", "otel", "sdktrace", "semconv", "zipkin"]
+    "cSpell.words": ["opentelemetry", "otel", "otlp", "pprof", "proto", "sdktrace", "semconv", "zipkin", "zpages"]
 }

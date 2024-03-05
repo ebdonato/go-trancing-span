@@ -1,12 +1,32 @@
 version: "3.7"
 services:
   zipkin-collector:
-    image: openzipkin/zipkin-slim:latest
+    image: openzipkin/zipkin:latest
     container_name: zipkin
     ports:
       - "9411:9411"
     networks:
       - example
+
+  jaeger-all-in-one:
+    image: jaegertracing/all-in-one:latest
+    restart: always
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    restart: always
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./.docker/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "1888:1888" # pprof extension
+      - "13133:13133" # health_check extension
+      - "4317:4317" # OTLP gRPC receivers
+
   service-a:
     build: ./service-a/.
     container_name: service-a
@@ -25,7 +45,10 @@ services:
       - example
     depends_on:
       - zipkin-collector
+      - jaeger-all-in-one
+      - otel-collector
       - service-b
+
   service-b:
     build: ./service-b/.
     container_name: service-b
@@ -43,5 +66,7 @@ services:
       - example
     depends_on:
       - zipkin-collector
+      - jaeger-all-in-one
+      - otel-collector
 networks:
   example:
