@@ -75,6 +75,10 @@ type serviceResponse struct {
 	Temp_K float64 `json:"temp_k"`
 }
 
+type serviceRequest struct {
+	Cep string `json:"cep"`
+}
+
 func main() {
 	url := flag.String("zipkin", "http://localhost:9411/api/v2/spans", "zipkin url")
 	flag.Parse()
@@ -97,7 +101,7 @@ func main() {
 	serviceUrl := util.GetEnvVariable("SERVICE_URL") + "/%s"
 
 	r := chi.NewRouter()
-	r.Get("/{cep}", handlerCEP(serviceUrl))
+	r.Post("/", handlerCEP(serviceUrl))
 
 	log.Println("Starting web server A on port", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), r))
@@ -113,7 +117,30 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 		ctx, span := tr.Start(ctx, "service-a", trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
 
-		cepParams := strings.TrimSpace(r.URL.Path[1:])
+		defer r.Body.Close()
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			message := "Internal Server Error"
+			log.Println(message)
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(message))
+			return
+		}
+
+		var input serviceRequest
+		err = json.Unmarshal(body, &input)
+		if err != nil {
+			message := "Unexpected request body"
+			log.Println(message)
+			log.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(message))
+			return
+		}
+
+		cepParams := input.Cep
 
 		if !util.IsValidCEP(cepParams) {
 			message := "Invalid CEP"
@@ -144,7 +171,7 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 		}
 		defer res.Body.Close()
 
-		body, err := io.ReadAll(res.Body)
+		requestBody, err := io.ReadAll(res.Body)
 		if err != nil {
 			message := "Internal Server Error"
 			log.Println(message)
@@ -155,13 +182,14 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 		}
 
 		var data temperatureResponse
-		err = json.Unmarshal(body, &data)
+		err = json.Unmarshal(requestBody, &data)
 		if err != nil {
 			message := "Parse response from service failed"
 			log.Println(message)
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(message))
+			return
 		}
 
 		w.WriteHeader(http.StatusOK)
