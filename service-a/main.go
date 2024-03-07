@@ -63,9 +63,16 @@ func initTracer(url string) (func(context.Context) error, error) {
 	return tp.Shutdown, nil
 }
 
-type serviceResponse struct {
+type temperatureResponse struct {
 	Location    string
 	Temperature weather.Temperature
+}
+
+type serviceResponse struct {
+	City   string  `json:"city"`
+	Temp_C float64 `json:"temp_c"`
+	Temp_F float64 `json:"temp_f"`
+	Temp_K float64 `json:"temp_k"`
 }
 
 func main() {
@@ -147,7 +154,7 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 			return
 		}
 
-		var data serviceResponse
+		var data temperatureResponse
 		err = json.Unmarshal(body, &data)
 		if err != nil {
 			message := "Parse response from service failed"
@@ -158,6 +165,19 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(data)
+		err = json.NewEncoder(w).Encode(serviceResponse{
+			City:   strings.Split(data.Location, ",")[0],
+			Temp_C: data.Temperature.Celsius,
+			Temp_F: data.Temperature.Fahrenheit,
+			Temp_K: data.Temperature.Kelvin,
+		})
+
+		if err != nil {
+			message := "Encode response failed"
+			log.Println(message)
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(message))
+		}
 	}
 }
