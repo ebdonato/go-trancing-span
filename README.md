@@ -56,8 +56,19 @@ No serviço A é necessário configurar nas variáveis de ambiente a porta que o
 No serviço B é necessário configurar nas variáveis de ambiente a porta que o servidor irá escutar e a API KEY do serviço externo WeatherAPI.
 Mais detalhes sobre as variáveis de ambiente podem ser vista no arquivo `.env.defaults`. As variáveis de ambiente devem ser configuradas no arquivo `.env` ou diretamente no host.
 
-Quando a aplicação estiver funcionando, a URL do serviço A deverá ser: <https://some.domain.com/:cep> onde `:cep` é o CEP que deseja consultar, por exemplo <http://localhost:8080/13330550>
+Quando a aplicação estiver funcionando, a URL do serviço A deverá ser: <https://some.domain.com/>.
 
 Por conveniência, está disponível um Docker Compose que sobe os serviços de OTEL e os dois serviços observados .
 
-Cada serviço possui apenas um rota: `/{cep}`.
+Cada serviço A possui apenas um rota: POST `/`, e espera um corpo JSON com o seguinte formato: { "cep": "29902555" }.
+Cada serviço B possui apenas um rota: GET `/{cep}`.
+
+## Exemplo de chamadas
+
+```bash
+# Serviço A
+curl -X POST -d '{"cep": "29902555"}' http://localhost:8080
+
+# Serviço B
+curl http://localhost:8090/29902555
+```
