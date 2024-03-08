@@ -165,11 +165,23 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 		otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
-			w.WriteHeader(res.StatusCode)
-			w.Write([]byte(res.Status))
+			message := "Error while calling service CEP/Temperature Service"
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(message))
 			return
 		}
 		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			message := res.Status
+			if res.StatusCode == http.StatusNotFound {
+				message = "Can not found CEP"
+			}
+			log.Println(message)
+			w.WriteHeader(res.StatusCode)
+			w.Write([]byte(message))
+			return
+		}
 
 		requestBody, err := io.ReadAll(res.Body)
 		if err != nil {

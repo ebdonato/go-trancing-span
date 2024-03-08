@@ -110,9 +110,20 @@ func handlerCEP(apiKey string) http.HandlerFunc {
 		viaCep := cep.InstanceViaCep()
 		location, err := viaCep.FindLocation(cepParams)
 		if err != nil {
-			message := "Invalid CEP"
+			var message string
+			var statusCode int
+
+			if err.Error() == "CEP NOT FOUND" {
+				message = "CEP not found"
+				statusCode = http.StatusNotFound
+			} else {
+				message = "Invalid CEP"
+				statusCode = http.StatusUnprocessableEntity
+			}
+
 			log.Println(message)
-			w.WriteHeader(http.StatusUnprocessableEntity)
+			log.Println(err)
+			w.WriteHeader(statusCode)
 			w.Write([]byte(message))
 			return
 		}
