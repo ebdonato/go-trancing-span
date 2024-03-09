@@ -63,11 +63,6 @@ func initTracer(url string) (func(context.Context) error, error) {
 	return tp.Shutdown, nil
 }
 
-type temperatureResponse struct {
-	Location    string
-	Temperature weather.Temperature
-}
-
 type serviceResponse struct {
 	City   string  `json:"city"`
 	Temp_C float64 `json:"temp_c"`
@@ -98,7 +93,7 @@ func main() {
 	}()
 
 	port := util.GetEnvVariable("PORT_SA")
-	serviceUrl := util.GetEnvVariable("SERVICE_URL") + "/%s"
+	serviceUrl := util.GetEnvVariable("SERVICE_URL")
 
 	r := chi.NewRouter()
 	r.Post("/", handlerCEP(serviceUrl))
@@ -150,7 +145,11 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 			return
 		}
 
-		url := fmt.Sprintf(serviceUrl, cepParams)
+		/**
+		* Call service CEP/Temperature Service
+		 */
+
+		url := fmt.Sprintf(serviceUrl+"/cep/%s", cepParams)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
@@ -165,7 +164,7 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 		otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
-			message := "Error while calling service CEP/Temperature Service"
+			message := "Error while calling service CEP Service"
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(message))
 			return
@@ -193,7 +192,53 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 			return
 		}
 
-		var data temperatureResponse
+		location := (string)(requestBody)
+
+		/**
+		* Call Location Service
+		 */
+
+		url = fmt.Sprintf(serviceUrl+"/location/%s", location)
+
+		req, err = http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			message := "Internal Server Error"
+			log.Println(message)
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(message))
+			return
+		}
+
+		otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
+		res, err = http.DefaultClient.Do(req)
+		if err != nil {
+			message := "Error while calling service Location Service"
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(message))
+			return
+		}
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK {
+			message := res.Status
+			log.Println(message)
+			w.WriteHeader(res.StatusCode)
+			w.Write([]byte(message))
+			return
+		}
+
+		requestBody, err = io.ReadAll(res.Body)
+		if err != nil {
+			message := "Internal Server Error"
+			log.Println(message)
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(message))
+			return
+		}
+
+		var data weather.Temperature
 		err = json.Unmarshal(requestBody, &data)
 		if err != nil {
 			message := "Parse response from service failed"
@@ -204,12 +249,16 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 			return
 		}
 
+		/**
+		* Return response
+		 */
+
 		w.WriteHeader(http.StatusOK)
 		err = json.NewEncoder(w).Encode(serviceResponse{
-			City:   strings.Split(data.Location, ",")[0],
-			Temp_C: data.Temperature.Celsius,
-			Temp_F: data.Temperature.Fahrenheit,
-			Temp_K: data.Temperature.Kelvin,
+			City:   strings.Split(location, ",")[0],
+			Temp_C: data.Celsius,
+			Temp_F: data.Fahrenheit,
+			Temp_K: data.Kelvin,
 		})
 
 		if err != nil {

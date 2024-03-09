@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/ebdonato/go-deploy-cloud-run/pkg/cep"
 	"github.com/ebdonato/go-deploy-cloud-run/pkg/weather"
@@ -84,28 +83,24 @@ func main() {
 	apiKey := util.GetEnvVariable("WEATHER_API_KEY")
 
 	r := chi.NewRouter()
-	r.Get("/{cep}", handlerCEP(apiKey))
+	r.Get("/cep/{cep}", handlerCEP())
+	r.Get("/location/{location}", handlerLocation(apiKey))
 
 	log.Println("Starting web server B on port", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), r))
 }
 
-type serviceResponse struct {
-	Location    string
-	Temperature weather.Temperature
-}
-
-func handlerCEP(apiKey string) http.HandlerFunc {
+func handlerCEP() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		carrier := propagation.HeaderCarrier(r.Header)
 		ctx := r.Context()
 		ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 
 		tr := otel.GetTracerProvider().Tracer("handlerCEP")
-		_, span := tr.Start(ctx, "service-b", trace.WithSpanKind(trace.SpanKindServer))
+		_, span := tr.Start(ctx, "service-b-cep", trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
 
-		cepParams := strings.TrimSpace(r.URL.Path[1:])
+		cepParams := chi.URLParam(r, "cep")
 
 		viaCep := cep.InstanceViaCep()
 		location, err := viaCep.FindLocation(cepParams)
@@ -128,6 +123,23 @@ func handlerCEP(apiKey string) http.HandlerFunc {
 			return
 		}
 
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(location))
+	}
+}
+
+func handlerLocation(apiKey string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		carrier := propagation.HeaderCarrier(r.Header)
+		ctx := r.Context()
+		ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+
+		tr := otel.GetTracerProvider().Tracer("handlerCEP")
+		_, span := tr.Start(ctx, "service-b-location", trace.WithSpanKind(trace.SpanKindServer))
+		defer span.End()
+
+		location := chi.URLParam(r, "location")
+
 		weatherApi := weather.InstanceWeatherApi(apiKey)
 		temperature, err := weatherApi.GetTemperature(location)
 
@@ -140,12 +152,7 @@ func handlerCEP(apiKey string) http.HandlerFunc {
 			return
 		}
 
-		response := serviceResponse{
-			Location:    location,
-			Temperature: temperature,
-		}
-
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(w).Encode(temperature)
 	}
 }

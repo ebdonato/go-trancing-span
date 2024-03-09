@@ -61,7 +61,7 @@ Quando a aplicação estiver funcionando, a URL do serviço A deverá ser: <http
 Por conveniência, está disponível um Docker Compose que sobe os serviços de OTEL e os dois serviços observados .
 
 Cada serviço A possui apenas um rota: POST `/`, e espera um corpo JSON com o seguinte formato: { "cep": "29902555" }.
-Cada serviço B possui apenas um rota: GET `/{cep}`.
+Cada serviço B possui duas rotas: GET `cep/{cep}` e GET `location/{location}`.
 
 ## Exemplo de chamadas
 
@@ -70,5 +70,8 @@ Cada serviço B possui apenas um rota: GET `/{cep}`.
 curl -X POST -d '{"cep": "29902555"}' http://localhost:8080
 
 # Serviço B
-curl http://localhost:8090/29902555
+# CEP
+curl http://localhost:8090/cep/29902555
+# Location
+curl http://localhost:8090/location/Linhares,ES
 ```
