@@ -49,7 +49,7 @@ func initTracer(url string) (func(context.Context) error, error) {
 		sdktrace.WithSpanProcessor(batcher),
 		sdktrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName("zipkin-test"),
+			semconv.ServiceName("service-a"),
 		)),
 	)
 	otel.SetTracerProvider(tp)
@@ -109,7 +109,7 @@ func handlerCEP(serviceUrl string) http.HandlerFunc {
 		ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 
 		tr := otel.GetTracerProvider().Tracer("handlerCEP")
-		ctx, span := tr.Start(ctx, "service-a", trace.WithSpanKind(trace.SpanKindServer))
+		ctx, span := tr.Start(ctx, "get-location-temperature", trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
 
 		defer r.Body.Close()

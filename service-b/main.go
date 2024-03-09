@@ -48,7 +48,7 @@ func initTracer(url string) (func(context.Context) error, error) {
 		sdktrace.WithSpanProcessor(batcher),
 		sdktrace.WithResource(resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName("zipkin-test"),
+			semconv.ServiceName("service-b"),
 		)),
 	)
 	otel.SetTracerProvider(tp)
@@ -97,7 +97,7 @@ func handlerCEP() http.HandlerFunc {
 		ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 
 		tr := otel.GetTracerProvider().Tracer("handlerCEP")
-		_, span := tr.Start(ctx, "service-b-cep", trace.WithSpanKind(trace.SpanKindServer))
+		_, span := tr.Start(ctx, "get-location-by-cep", trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
 
 		cepParams := chi.URLParam(r, "cep")
@@ -135,7 +135,7 @@ func handlerLocation(apiKey string) http.HandlerFunc {
 		ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 
 		tr := otel.GetTracerProvider().Tracer("handlerCEP")
-		_, span := tr.Start(ctx, "service-b-location", trace.WithSpanKind(trace.SpanKindServer))
+		_, span := tr.Start(ctx, "get-temperature-by-location", trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
 
 		location := chi.URLParam(r, "location")
